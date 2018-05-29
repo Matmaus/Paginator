@@ -14,15 +14,41 @@
 		private $baseUrl;
 
 		// state
-		private $language;  //TODO support for more languages, EN is default
+		private $getLang;
 		private $page = [];
 		private $table;
-		private $offset;
+		private $offset = NULL;
 		private $limit;
 		private $boxes;
 
-		private $div;
-		private $mob;
+		private $div = "";
+		private $mob = "";
+
+		// languages
+		private $language_en = [
+			"page"       => "Page",
+			"of"         => "of",
+			"next_page"  => "Next page",
+			"prev_page"  => "Previous page",
+			"first_page" => "First page",
+			"last_page"  => "Last page"
+		];
+		private $language_sk = [
+			"page"       => "Stránka",
+			"of"         => "z",
+			"next_page"  => "Ďaľšia stránka",
+			"prev_page"  => "Predošlá stránka",
+			"first_page" => "Prvá stránka",
+			"last_page"  => "Posledná stránka"
+		];
+		private $language_cz = [
+			"page"       => "Stránka",
+			"of"         => "z",
+			"next_page"  => "Další stránka",
+			"prev_page"  => "Předchozí stránka",
+			"first_page" => "První stránka",
+			"last_page"  => "Poslední stránka"
+		];
 
 		//Example of usable UrlPatterns
 		//$urlPattern = '/foo/articles/(:num)/slug';
@@ -41,9 +67,10 @@
 		{
 			$this->db = $database;
 
-			if ($language != "en" and $language != "sk")
+			$language = "language_".$language;
+			if (!isset($this->{$language}))
 				die("Paginator: Wrong language set!");
-			$this->language = $language;
+			$this->getLang = (object)$this->{$language};
 
 			if (!is_numeric($limit))
 				die("Paginator: Limit is not a number!");
@@ -83,6 +110,24 @@
 		}
 
 		/**
+		 * @param $language
+		 */
+		public function addLanguage($language)
+		{
+			if (is_object($language)) {
+				if (!isset($language->page) || !isset($language->of) || !isset($language->next_page) || !isset($language->prev_page) ||
+				    !isset($language->first_page) || !isset($language->last_page))
+					die("Paginator: Language must contain all of ->page, ->of, ->next_page, ->prev_page, ->first_page and ->last_page!");
+			} else if (is_array($language)) {
+				if (!isset($language['page']) || !isset($language['of']) || !isset($language['next_page']) || !isset($language['prev_page']) ||
+				    !isset($language['first_page']) || !isset($language['last_page']))
+					die("Paginator: Language must contain all of ['page'], ['of'], ['next_page'], ['prev_page'], ['first_page'] and ['last_page']!");
+			} else
+				die("Paginator: Language is nor array neither object!");
+			$this->getLang = (object)$language;
+		}
+
+		/**
 		 * @param        $urlPattern
 		 * @param string $table
 		 * @param int    $offset
@@ -98,7 +143,7 @@
 			if (!filter_var($offset, FILTER_VALIDATE_INT))
 				die("Paginator: Index is not a number!");
 			if ($offset < 1)
-				die("Pginator: Offset has a negative value!");
+				die("Paginator: Offset has a negative value!");
 			$this->offset = $offset;
 
 			if ($limit != NULL) {
@@ -132,8 +177,8 @@
 			// The "back" link
 			if (($page > 1)) {
 				$prevLink = '<a href="'.$this->page["first"].
-				            '" title="Začiatok"><i class="fa fa-angle-double-left"></i></a> <a href="'.$this->page["-1"].
-				            '" title="Predošlá stránka"><i class="fa fa-angle-left"></i></a>';
+				            '" title="'.$this->getLang->first_page.'"><i class="fa fa-angle-double-left"></i></a> <a href="'.$this->page["-1"].
+				            '" title="'.$this->getLang->prev_page.'"><i class="fa fa-angle-left"></i></a>';
 			} else {
 				$prevLink =
 					'<span class="disabled"><i class="fa fa-angle-double-left"></i></span> <span class="disabled"><i class="fa fa-angle-left"></i></span>';
@@ -142,15 +187,15 @@
 			// The "forward" link
 			if (($page < $pages)) {
 				$nextLink = '<a href="'.$this->page["+1"].
-				            '" title="Ďalšia stránka"><i class="fa fa-angle-right"></i></a> <a href="'.$this->page["last"].
-				            '" title="Koniec"><i class="fa fa-angle-double-right"></i></a>';
+				            '" title="'.$this->getLang->next_page.'"><i class="fa fa-angle-right"></i></a> <a href="'.$this->page["last"].
+				            '" title="'.$this->getLang->last_page.'"><i class="fa fa-angle-double-right"></i></a>';
 			} else {
 				$nextLink =
 					'<span class="disabled"><i class="fa fa-angle-right"></i></span> <span class="disabled"><i class="fa fa-angle-double-right"></i></span>';
 			}
 
 			$this->div =
-				'<div class="paging"><p> '.$prevLink.' Strana '.$page.' z '.$pages.', '.$start.' - '.
+				'<div class="paging"><p> '.$prevLink.' '.$this->getLang->page.' '.$page.' '.$this->getLang->of.' '.$pages.', '.$start.' - '.
 				$end.' / '.$total.' '.$nextLink.' </p></div>';
 
 			$this->mob = '<div class="mob_paging"><p> '.$prevLink.' '.$nextLink.' </p></div>';
@@ -174,7 +219,7 @@
 				if (!filter_var($offset, FILTER_VALIDATE_INT))
 					die("Paginator: Index is not a number!");
 				if ($offset < 1)
-					die("Pginator: Offset has a negative value!");
+					die("Paginator: Offset has a negative value!");
 				$this->offset = $offset;
 			}
 
@@ -210,7 +255,7 @@
 			//start link
 			if (($page > 1)) {
 				$startlink = '<li>
-                    <a href="'.$this->page["first"].'" title="Začiatok">
+                    <a href="'.$this->page["first"].'" title="'.$this->getLang->first_page.'">
                         <i class="fa fa-chevron-circle-left"></i>
                     </a>
                 </li>';
@@ -225,7 +270,7 @@
 			// previous link
 			if (($page > 1)) {
 				$prevLink = '<li>
-                    <a href="'.$this->page["prev"].'" title="Predošlá"">
+                    <a href="'.$this->page["prev"].'" title="'.$this->getLang->prev_page.'"">
                         <i class="fa fa-chevron-left"></i>
                     </a>
                 </li>';
@@ -332,7 +377,7 @@
 			// next link
 			if (($page < $pages)) {
 				$nextLink = '<li>
-                                <a href="'.$this->page["next"].'" title="Ďalšia">
+                                <a href="'.$this->page["next"].'" title="'.$this->getLang->next_page.'">
                                     <i class="fa fa-chevron-right"></i>
                                 </a>
                             </li>';
@@ -347,7 +392,7 @@
 			//end link
 			if (($page != $pages)) {
 				$endlink = '<li>
-                                <a href="'.$this->page["last"].'" title="Koniec">
+                                <a href="'.$this->page["last"].'" title="'.$this->getLang->last_page.'">
 									<i class="fa fa-chevron-circle-right"></i>
 								</a>
                             </li>';
