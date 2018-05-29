@@ -1,13 +1,7 @@
-<!-- 
-	$paginator = new Paginator($db);
-	require_once 'Paginator.php';
- -->
-
-
 <?php require "_partials/header.php"; ?>
 	<main>
 
-		<?php 
+		<?php
 			if ($url->segment(2)) {
 				$get_int = filter_var($url->segment(2), FILTER_SANITIZE_NUMBER_INT);
 				if (!empty($get_int)) {
@@ -21,17 +15,15 @@
 				$int = 1;
 			}
 
-			$user_limit = user_setting( 'num_notices' );
-			$obj = $paginator->paginate("notices", $int, $user_limit->value);
-			//$paging = paginator_notices( $int, $user_limit->value );
-			$results = get_notices( $paging->offset, $paging->limit );
+			$paginator->setStatePaginateArrows("http://localhost/farnost/example/(:num)", "notices", $int);
+			$results = get_notices( $paginator->getOffset(), $paginator->getLimit() );
 		?>
-		
+
 		<section>
 			<h2 class="view_title">Farské oznamy</h2>
-			
+
 			<?php if ( count($results) ) :foreach ( $results as $notice ) : $notice = format_notice( $notice )?>
-				
+
 				<article id="notice_<?= $notices->id ?>" class="notice">
 					<h2>
 						<a href=" <?= $notice->link ?> ">
@@ -55,12 +47,11 @@
 						<a href=" <?= $notice->link ?> ">Pozrieť celé</a>
 					</span>
 				</article>
-			
-			<?php endforeach; endif; ?>	
 
-			<?=$obj->div;?>
-			<?=$obj->mob;?>
+			<?php endforeach; endif; ?>
+
+			<?php $paginator->printNormalAndMobile(); ?>
 		</section>
 
 	</main>
-</body>
+<?php require "_partials/footer.php"; ?>
