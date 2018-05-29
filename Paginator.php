@@ -65,6 +65,10 @@
 		 */
 		public function __construct(\PDO $database, $language = "en", $limit = 5)
 		{
+			if (version_compare(phpversion(), '5.2.0', '<')) {
+				die('PHP 5.2.0 or above required for Paginator engine!');
+			}
+
 			$this->db = $database;
 
 			$language = "language_".$language;
