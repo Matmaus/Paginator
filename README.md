@@ -12,7 +12,7 @@
 
 Simple and easy to use plugin for websites to paginate of pages or whatever you want.
 
-##Features
+## Features
 
 * Easy to use
 * Multi-language support - EN, SK, CZ are predefined, possibility to add new one
@@ -50,7 +50,7 @@ require_once 'vendor/autoload.php';
 
 ## Configure
 
-### Creating of instances
+##### Creating of instances
 
 Parameter  |Explaining
 ----|----
