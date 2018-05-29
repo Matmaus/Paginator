@@ -63,4 +63,4 @@
 		</section>
 
 	</main>
-<?php require "_partials/footer.php"; ?>
+</body>

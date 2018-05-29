@@ -9,64 +9,109 @@
 
 	class Paginator
 	{
+		// constants
 		private $db;
 		private $baseUrl;
+
+		// state
+		private $language;  //TODO support for more languages, EN is default
 		private $page = [];
 		private $table;
-		//private $tabs;
 		private $offset;
 		private $limit;
 		private $boxes;
-		private $results;
+
 		private $div;
 		private $mob;
+
+		//Example of usable UrlPatterns
+		//$urlPattern = '/foo/articles/(:num)/slug';
+		//$urlPattern = '/foo/articles/items/(:num)';
+		//$urlPattern = '/foo/page/(:num)';
+		//$urlPattern = '/foo?page=(:num)';
 
 		/**
 		 * Paginator constructor.
 		 *
-		 * @param \PDO   $db
-		 * @param string $urlPattern
+		 * @param \PDO   $database
+		 * @param string $language
+		 * @param int    $limit
 		 */
-		public function __construct(\PDO $db, $urlPattern)
+		public function __construct(\PDO $database, $language = "en", $limit = 5)
 		{
-			if (version_compare(phpversion(), '5.4.0', '<')) {
-				die('PHP 5.4.0 required for Paginator engine!');
-			}
+			$this->db = $database;
 
-			$this->db = $db;
+			if ($language != "en" and $language != "sk")
+				die("Paginator: Wrong language set!");
+			$this->language = $language;
 
-			$this->createUrl($urlPattern);
+			if (!is_numeric($limit))
+				die("Paginator: Limit is not a number!");
+			if ($limit < 1)
+				die("Paginator: Limit has negative value!");
+			$this->limit = $limit;
+		}
+
+		public function getLimit()
+		{
+			return $this->limit;
+		}
+
+		public function getOffset()
+		{
+			return $this->offset;
+		}
+
+		public function getMobile()
+		{
+			return $this->mob;
+		}
+
+		public function getNormal()
+		{
+			return $this->div;
+		}
+
+		public function getNormalAndMobile()
+		{
+			return $this->div."\n".$this->mob;
+		}
+
+		public function printNormalAndMobile()
+		{
+			echo $this->div."\n".$this->mob;;
 		}
 
 		/**
+		 * @param        $urlPattern
 		 * @param string $table
-		 * @param int    $int
+		 * @param int    $offset
 		 * @param int    $limit
-		 *
-		 * @return object
 		 */
-		public function paginate_arrows($table, $int = 1, $limit = 5)
+		public function setStatePaginateArrows($urlPattern, $table, $offset = 1, $limit = NULL)
 		{
+			$this->baseUrl = $urlPattern;
 
-			if (filter_var($table, FILTER_SANITIZE_FULL_SPECIAL_CHARS) != NULL) {
-				$this->table = $table;
-			}
+			$this->table = filter_var($table, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
 
-			$int = filter_var($int, FILTER_SANITIZE_NUMBER_INT);
-			if (filter_var($int, FILTER_VALIDATE_INT)) {
-				$this->offset = $int;
-			}
+			$offset = filter_var($offset, FILTER_SANITIZE_NUMBER_INT);
+			if (!filter_var($offset, FILTER_VALIDATE_INT))
+				die("Paginator: Index is not a number!");
+			if ($offset < 1)
+				die("Pginator: Offset has a negative value!");
+			$this->offset = $offset;
 
-			$limit = filter_var($limit, FILTER_SANITIZE_NUMBER_INT);
-			if (filter_var($limit, FILTER_VALIDATE_INT)) {
+			if ($limit != NULL) {
+				$limit = filter_var($limit, FILTER_SANITIZE_NUMBER_INT);
+				if (!filter_var($limit, FILTER_VALIDATE_INT))
+					die("Paginator: Limit is not a number!");
+				if ($limit < 1)
+					die("Paginator: Limit has a negative value!");
 				$this->limit = $limit;
 			}
 
 			// Find out how many items are in the table
-			$total = $this->db->query("
-     		    SELECT COUNT(*)
-     		    FROM {$this->table}
-    		")->fetchColumn();
+			$total = $this->db->query("SELECT COUNT(*) FROM {$this->table}")->fetchColumn();
 
 			// How many pages will there be
 			$pages = ceil($total / $this->limit);
@@ -81,61 +126,64 @@
 			$start = $this->offset + 1;
 			$end   = min(($this->offset + $this->limit), $total);
 
-			//Create an array of links
+			// Create an array of links
 			$this->page_array($page, $pages);
 
 			// The "back" link
-			$prevLink = ($page > 1)
-				? '<a href="'.$this->page["first"].
-				  '" title="Začiatok"><i class="fa fa-angle-double-left"></i></a> <a href="'.$this->page["-1"].
-				  '" title="Predošlá stránka"><i class="fa fa-angle-left"></i></a>'
-				:
-				'<span class="disabled"><i class="fa fa-angle-double-left"></i></span> <span class="disabled"><i class="fa fa-angle-left"></i></span>';
+			if (($page > 1)) {
+				$prevLink = '<a href="'.$this->page["first"].
+				            '" title="Začiatok"><i class="fa fa-angle-double-left"></i></a> <a href="'.$this->page["-1"].
+				            '" title="Predošlá stránka"><i class="fa fa-angle-left"></i></a>';
+			} else {
+				$prevLink =
+					'<span class="disabled"><i class="fa fa-angle-double-left"></i></span> <span class="disabled"><i class="fa fa-angle-left"></i></span>';
+			}
 
 			// The "forward" link
-			$nextLink = ($page < $pages)
-				? '<a href="'.$this->page["+1"].
-				  '" title="Ďalšia stránka"><i class="fa fa-angle-right"></i></a> <a href="'.$this->page["last"].
-				  '" title="Koniec"><i class="fa fa-angle-double-right"></i></a>'
-				:
-				'<span class="disabled"><i class="fa fa-angle-right"></i></span> <span class="disabled"><i class="fa fa-angle-double-right"></i></span>';
+			if (($page < $pages)) {
+				$nextLink = '<a href="'.$this->page["+1"].
+				            '" title="Ďalšia stránka"><i class="fa fa-angle-right"></i></a> <a href="'.$this->page["last"].
+				            '" title="Koniec"><i class="fa fa-angle-double-right"></i></a>';
+			} else {
+				$nextLink =
+					'<span class="disabled"><i class="fa fa-angle-right"></i></span> <span class="disabled"><i class="fa fa-angle-double-right"></i></span>';
+			}
 
 			$this->div =
 				'<div class="paging"><p> '.$prevLink.' Strana '.$page.' z '.$pages.', '.$start.' - '.
 				$end.' / '.$total.' '.$nextLink.' </p></div>';
 
 			$this->mob = '<div class="mob_paging"><p> '.$prevLink.' '.$nextLink.' </p></div>';
-
-			$this->results = ['limit' => $this->limit, 'offset' => $this->offset, 'div' => $this->div,
-			                  'mob'   => $this->mob,
-			];
-
-			return (object)$this->results;
-
 		}
 
 		/**
+		 * @param     $urlPattern
 		 * @param     $table
-		 * @param int $int
+		 * @param int $offset
 		 * @param int $limit
 		 * @param int $boxes
-		 *
-		 * @return object
 		 */
-		public function paginate_numbers($table, $int = 1, $limit = 5, $boxes = 5)
+		public function setStatePaginateNumbers($urlPattern, $table, $offset = NULL, $limit = NULL, $boxes = 5)
 		{
+			$this->baseUrl = $urlPattern;
 
-			if (filter_var($table, FILTER_SANITIZE_FULL_SPECIAL_CHARS) != NULL) {
-				$this->table = $table;
+			$this->table = filter_var($table, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+
+			if ($offset != NULL) {
+				$offset = filter_var($offset, FILTER_SANITIZE_NUMBER_INT);
+				if (!filter_var($offset, FILTER_VALIDATE_INT))
+					die("Paginator: Index is not a number!");
+				if ($offset < 1)
+					die("Pginator: Offset has a negative value!");
+				$this->offset = $offset;
 			}
 
-			$int = filter_var($int, FILTER_SANITIZE_NUMBER_INT);
-			if (filter_var($int, FILTER_VALIDATE_INT)) {
-				$this->offset = $int;
-			}
-
-			$limit = filter_var($limit, FILTER_SANITIZE_NUMBER_INT);
-			if (filter_var($limit, FILTER_VALIDATE_INT)) {
+			if ($limit != NULL) {
+				$limit = filter_var($limit, FILTER_SANITIZE_NUMBER_INT);
+				if (!filter_var($limit, FILTER_VALIDATE_INT))
+					die("Paginator: Limit is not a number!");
+				if ($limit < 1)
+					die("Paginator: Limit has a negative value!");
 				$this->limit = $limit;
 			}
 
@@ -145,10 +193,7 @@
 			}
 
 			// Find out how many items are in the table
-			$total = $this->db->query("
-                SELECT COUNT(*)
-                FROM {$this->table}
-            ")->fetchColumn();
+			$total = $this->db->query("SELECT COUNT(*) FROM {$this->table}")->fetchColumn();
 
 			// How many pages will there be
 			$pages = ceil($total / $this->limit);
@@ -159,40 +204,38 @@
 			// Calculate the offset for the query
 			$this->offset = ($page - 1) * $this->limit;
 
-			// Some information to display to the user
-			$start = $this->offset + 1;
-			$end   = min(($this->offset + $this->limit), $total);
-
 			//Create an array of links
 			$this->page_array($page, $pages);
 
 			//start link
-			$startlink = ($page > 1)
-				? '<li>
+			if (($page > 1)) {
+				$startlink = '<li>
                     <a href="'.$this->page["first"].'" title="Začiatok">
                         <i class="fa fa-chevron-circle-left"></i>
                     </a>
-                </li>'
-				:
-				'<li>
+                </li>';
+			} else {
+				$startlink = '<li>
                     <span class="disabled">
                         <i class="fa fa-chevron-circle-left"></i>
                     </span>
                 </li>';
+			}
 
 			// previous link
-			$prevLink = ($page > 1)
-				? '<li>
+			if (($page > 1)) {
+				$prevLink = '<li>
                     <a href="'.$this->page["prev"].'" title="Predošlá"">
                         <i class="fa fa-chevron-left"></i>
                     </a>
-                </li>'
-				:
-				'<li>
+                </li>';
+			} else {
+				$prevLink = '<li>
                     <span class="disabled">
                         <i class="fa fa-chevron-left"></i>
                     </span>
                 </li>';
+			}
 			/*numbered links*/
 			// 10000
 			if ($page < 2) {
@@ -287,32 +330,34 @@
 				}
 			}
 			// next link
-			$nextLink = ($page < $pages)
-				? '<li>
-                                                <a href="'.$this->page["next"].'" title="Ďalšia">
-                                                    <i class="fa fa-chevron-right"></i>
-                                                </a>
-                                            </li>'
-				:
-				'<li>
-                                                <span class="disabled">
-                                                    <i class="fa fa-chevron-right"></i>
-                                                </span>
-                                            </li>';
+			if (($page < $pages)) {
+				$nextLink = '<li>
+                                <a href="'.$this->page["next"].'" title="Ďalšia">
+                                    <i class="fa fa-chevron-right"></i>
+                                </a>
+                            </li>';
+			} else {
+				$nextLink = '<li>
+                                <span class="disabled">
+                                    <i class="fa fa-chevron-right"></i>
+                                </span>
+                            </li>';
+			}
 
 			//end link
-			$endlink = ($page != $pages)
-				? '<li>
-                                            	<a href="'.$this->page["last"].'" title="Koniec">
-													<i class="fa fa-chevron-circle-right"></i>
-												</a>
-                                        	</li>'
-				:
-				'<li>
-                                           		<span class="disabled">
-													<i class="fa fa-chevron-circle-right"></i>
-												</span>
-                                       		</li>';
+			if (($page != $pages)) {
+				$endlink = '<li>
+                                <a href="'.$this->page["last"].'" title="Koniec">
+									<i class="fa fa-chevron-circle-right"></i>
+								</a>
+                            </li>';
+			} else {
+				$endlink = '<li>
+                                <span class="disabled">
+									<i class="fa fa-chevron-circle-right"></i>
+								</span>
+                            </li>';
+			}
 
 			$div5 = '<nav class="text-center"> <ul class="pagination pagination-lg">'.$prevLink.$page1.$page2.
 			        $page3.$page4.$page5.$nextLink.'</ul> </nav>';
@@ -322,25 +367,12 @@
 				$page3.$page4.$page5.$nextLink.$endlink.'</ul> </nav>';
 
 			$this->div = ($this->boxes === 5) ? $div5 : $div7;
-
-			$this->results = ['limit' => $this->limit, 'offset' => $this->offset, 'div' => $this->div];
-
-			return (object)$this->results;
 		}
 
-		private function createUrl($urlPattern)
-		{
-			//Example of usable UrlPatterns
-			//$urlPattern = '/foo/articles/(:num)/slug';
-			//$urlPattern = '/foo/articles/items/(:num)';
-			//$urlPattern = '/foo/page/(:num)';
-			//$urlPattern = '/foo?page=(:num)';
-
-			$this->baseUrl = $_SERVER['SCRIPT_NAME'].substr($urlPattern,
-			                                                strpos($urlPattern, basename($_SERVER['SCRIPT_NAME'])) +
-			                                                strlen(basename($_SERVER['SCRIPT_NAME'])));
-		}
-
+		/**
+		 * @param $page
+		 * @param $pages
+		 */
 		private function page_array($page, $pages)
 		{
 			$this->page = [
